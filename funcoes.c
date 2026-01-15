@@ -1,14 +1,8 @@
 #include "head.h"
-#include <stdbool.h>
 
-//perguntas
-//1. Preciso abrir um diretorio p checar tds os arq ou poderia ser um vetor de arq?
-//2. structs precisam ser definidas na parte do head e da de funcoes p funcionar?
-//3. Por nome, tem problema se mostrar a extensão tambem?
-//4. Arq especiais . e .. devem ser considerados?
-//5. Preciso incluir uma pasta q está dentro da pesquisada? exemplo: codigo c e dentro de dele tem pastas como lab 1, etc
-//6. Pq bool printed[size]={false} n funciona?
-//7. Preciso tirar os arq repetidos? na coisa dos temas n pede mas é literalmente o nome do tema
+// perguntas
+// 4. Arq especiais . e .. devem ser considerados?
+// 5. Preciso incluir uma pasta q está dentro da pesquisada? exemplo: codigo c e dentro de dele tem pastas como lab 1, etc
 
 void get_name(Arquivo *file)
 {
@@ -22,10 +16,7 @@ void get_name(Arquivo *file)
             file->s_extensao[i] = '\0';
             break;
         }
-
     }
-
-    file->s_extensao[s_name] = '\0'; //se for uma pasta e n um arq, pastas n tem extensão
 }
 
 Arquivo *all_files(DIR *dir, Arquivo *files, int *size)
@@ -36,20 +27,24 @@ Arquivo *all_files(DIR *dir, Arquivo *files, int *size)
     printf("Lista de arquivos no diretorio:\n");
 
     while ((entrada = readdir(dir)) != NULL) { //readdir lê
+        if (strcmp(entrada->d_name, ".") == 0 || strcmp(entrada->d_name, "..") == 0) continue;
+
+        if (entrada->d_type == DT_DIR) continue;
+        
         printf("%s\n", entrada->d_name); 
-        (*size)++;
 
         //coloca tds os arq do dir num vetor alc dinam
-        temp = (Arquivo*) realloc(files, (*size)*sizeof(Arquivo)); 
+        temp = (Arquivo*) realloc(files, ((*size)+1)*sizeof(Arquivo)); 
         if (temp == NULL){
             printf("Erro de alocacao\n");
             free(files);
             closedir(dir);
-            exit(1);
+            return NULL;
         }
         files = temp;
-        strcpy((files+(*size)-1)->name, entrada->d_name);
-        get_name(files+(*size)-1);
+        strcpy((files+(*size))->name, entrada->d_name);
+        get_name(files+(*size));
+        (*size)++;
     }
 
     return files;
@@ -64,8 +59,8 @@ void comp_name(Arquivo *files, int size)
     }
 
     for(int i=0; i<size-1; i++){
-        for(int j=i+1; j<size; j++){ //strcasecmp em linux
-            if (stricmp((files+i)->s_extensao, (files+j)->s_extensao) == 0 && strlen((files+i)->s_extensao) > 0){ //strlen p garantir q tem algo na s_extensao
+        for(int j=i+1; j<size; j++){ //_stricmp testar se precisa dps
+            if (stricmp((files+i)->s_extensao, (files+j)->s_extensao) == 0){
                 if (!(printed[i])){
                     printf("%s\n", (files+i)->name);
                     printed[i] = true;
@@ -79,24 +74,78 @@ void comp_name(Arquivo *files, int size)
     }
 }
 
-// void open(arq)
-// {   
-//     char filename[20];
-//     FILE * arq;
-//     arq = fopen (filename,"r");
-//     if (arq == NULL){
-//         printf ("Erro de abertura");
-//     }
-// }
+void find_size(FILE *arq, long int *size){
+    fseek(arq, 0L, SEEK_END); //ponteiro p fim retorna 0 em sucesso
+    *size = ftell(arq); // retorna a posicao do ponteiro como um long intq é o num de bytes
+    rewind(arq);
+}
 
-// void close(arq)
-// {
-//     fclose(arq);
-// }
+FILE *abre_arquivo(char *nome){ //implenta junto do loop p abrir tds os arq do vetor
+    FILE *arq = fopen(nome, "rb");
+    
+    if (arq == NULL) {
+        printf("Erro de abertura do arquivo\n");
+    }
+    
+    return arq; 
+}
 
-// void comp_content(Arquivo *files, int size)
-// { //lista de arq e porcentagem de igualdade
-//     //poderia comparar usando strcmp e vendo a diferença entre str q eu iria pegar usando fread de cada um dos arq
-// }
+Arquivo *get_conteudo(char *dir_name, Arquivo *files, int size){
+    for(int i=0; i<size; i++){
+        char *temp = NULL;
+        char name[400];
+        sprintf(name, "%s/%s", dir_name, (files+i)->name); //se eu usar strcat muda dir_name
+        FILE *arq = abre_arquivo(name);
+        if (arq != NULL){
+            find_size(arq, &(files+i)->size);
+            temp = (char*) realloc((files+i)->conteudo, (files+i)->size + 1); //por conta do \0 p n dar birolha
+            if (temp == NULL){
+                printf("Erro de alocação de memória\n");
+                fclose(arq);
+                return NULL;
+            }
+            else{
+                (files+i)->conteudo = temp;
+                fread((files+i)->conteudo, 1, (files+i)->size, arq);
+                (files+i)->conteudo[(files+i)->size] = '\0';
+            }
+            fclose(arq);
+        }
+    }
+    return files;
+}
 
-// fazer funcao get strings p usar dentro de for p acessar td conteudo do arq p comparar usando algoritmo de levenstein
+int comp_byte(char *conteudo1, char *conteudo2, long int size){ 
+    for (long int i = 0; i < size; i++) {
+        if (conteudo1[i] != conteudo2[i]) return 0;
+    }
+
+    return 1;
+}
+
+void comp_content(Arquivo *files, int size){
+// fazer funcao get strings p usar dentro de for p acessar td conteudo do arq p comparar usando algoritmo de jaccard
+    float similaridade;
+    for (int i=0; i<size-1; i++){
+        //pego arq da vez
+        for (int j=i+1; j<size; j++){
+            if((files+i)->size==(files+j)->size){
+                if (!comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){
+                    //comp byte a byte e se n for 100 igual faz jaccard
+                    // similaridade = jaccard();
+                }else{
+                    similaridade = 100.0;
+                }
+            }else{
+                long int max, min;
+                if ((files+i)->size > (files+j)->size){
+                    max = (files+j)->size;
+                }else{
+                    max = (files+i)->size;
+                }
+                //se tamanhos diferentes aplica jaccard 
+                // similaridade = jaccard();
+            }
+        }
+    }
+}
