@@ -1,9 +1,5 @@
 #include "head.h"
 
-// perguntas
-// 4. Arq especiais . e .. devem ser considerados?
-// 5. Preciso incluir uma pasta q está dentro da pesquisada? exemplo: codigo c e dentro de dele tem pastas como lab 1, etc
-
 void get_name(Arquivo *file)
 {
     int s_name = strlen(file->name);
@@ -84,35 +80,81 @@ FILE *abre_arquivo(char *nome){ //implenta junto do loop p abrir tds os arq do v
     FILE *arq = fopen(nome, "rb");
     
     if (arq == NULL) {
-        printf("Erro de abertura do arquivo\n");
+        printf("Erro de abertura arq\n");
     }
     
     return arq; 
 }
 
-Arquivo *get_conteudo(char *dir_name, Arquivo *files, int size){
-    for(int i=0; i<size; i++){
-        char *temp = NULL;
-        char name[400];
-        sprintf(name, "%s/%s", dir_name, (files+i)->name); //se eu usar strcat muda dir_name
-        FILE *arq = abre_arquivo(name);
-        if (arq != NULL){
-            find_size(arq, &(files+i)->size);
-            temp = (char*) realloc((files+i)->conteudo, (files+i)->size + 1); //por conta do \0 p n dar birolha
-            if (temp == NULL){
-                printf("Erro de alocação de memória\n");
+char *get_conteudo(char *dir_name, char *arq_name, char *conteudo, long int *size){ //adaptar p retornar um char
+    char *temp = NULL;
+    char name[400];
+    sprintf(name, "%s/%s", dir_name, arq_name); //se eu usar strcat muda dir_name
+    FILE *arq = abre_arquivo(name);
+    if (arq != NULL){
+        find_size(arq, size);
+        temp = (char*) realloc(conteudo, (*size) + 1); //por conta do \0 p n dar birolha
+        if (temp == NULL){
+            printf("Erro de alocacao\n");
+            fclose(arq);
+            return NULL;
+        }
+        else{
+            conteudo = temp;
+            size_t bytes_lidos = fread(conteudo, 1, *size, arq);
+            if (bytes_lidos != *size){
+                printf("Erro n leu completo, lidos %ld\n", bytes_lidos);
+                free(conteudo);
                 fclose(arq);
                 return NULL;
             }
-            else{
-                (files+i)->conteudo = temp;
-                fread((files+i)->conteudo, 1, (files+i)->size, arq);
-                (files+i)->conteudo[(files+i)->size] = '\0';
-            }
-            fclose(arq);
+            conteudo[*size] = '\0';
         }
+        fclose(arq);
+        return conteudo;
     }
-    return files;
+    return NULL;
+}
+
+Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_palavras){
+    char marcadores[] = ".,; \n";
+    char *copia = (char*) malloc(size_conteudo + 1); //precisa p n perder conteudo
+
+    if (copia == NULL) return NULL;
+    if (size_conteudo ==0){
+        *qntd_palavras = 0;
+        return NULL;
+    }
+    strcpy(copia, conteudo);
+
+    char *palavra = strtok(copia, marcadores); 
+    while (palavra != NULL){
+        int encontrada = 0;
+        if (strlen(palavra) >= 47){ 
+            palavra[47] = '\0';
+        }
+        for (int i = 0; i < *qntd_palavras; i++){
+            if (strcmp(texto[i].palavras, palavra) == 0){
+                encontrada = 1;
+                break;
+            }
+        }
+        if (!encontrada){ //só qro q palavras unicas sejam consideradas
+            Texto *temp = (Texto*) realloc(texto, ((*qntd_palavras) + 1) * sizeof(Texto));
+            if (temp == NULL){
+                free(texto);
+                free(copia);
+                return NULL;
+            }
+            texto = temp;
+            strncpy(texto[*qntd_palavras].palavras, palavra, 46);
+            texto[*qntd_palavras].qntd = 1;
+            (*qntd_palavras)++;
+        }
+        palavra = strtok(NULL, marcadores);
+    }
+    free(copia);
+    return texto;
 }
 
 int comp_byte(char *conteudo1, char *conteudo2, long int size){ 

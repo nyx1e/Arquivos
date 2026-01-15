@@ -34,6 +34,23 @@ int main() {
 
             case 2:
             //conteúdo
+            for(int i=0;i<size;i++){
+                (files+i)->conteudo = NULL;
+                (files+i)->texto = NULL;
+                (files+i)->conteudo = get_conteudo(dir_name, (files+i)->name, (files+i)->conteudo, &(files+i)->size);
+                if ((files+i)->conteudo != NULL){ 
+                    (files+i)->qntd_palavras = 0;
+                    (files+i)->texto = get_text((files+i)->conteudo, (files+i)->size, (files+i)->texto, &(files+i)->qntd_palavras);
+                    if ((files+i)->texto==NULL){ 
+                        printf("Erro get_text");
+                        break;
+                    }
+                }
+                else{
+                    printf("Erro get_conteudo");
+                    break;
+                }
+            }
             //comp_content(files, size); 
             break;
 
