@@ -30,6 +30,7 @@ int main() {
             case 1:
             //nome
             comp_name(files, size); 
+            printf("Sucesso em arquivar similaridades\n");   
             break;
 
             case 2:
@@ -51,7 +52,8 @@ int main() {
                     break;
                 }
             }
-            //comp_content(files, size); 
+            comp_content(files, size);
+            printf("Sucesso em arquivar similaridades\n");   
             break;
 
             default:

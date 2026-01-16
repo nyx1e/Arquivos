@@ -23,6 +23,7 @@ typedef struct{
 } Arquivo;
 
 //funcoes
+void write_csv(char *tipo, char *arq1, char *arq2, float similaridade);
 void get_name(Arquivo *file);
 Arquivo *all_files(DIR *dir, Arquivo *files, int *size);
 void comp_name(Arquivo *files, int size); //lista de arq com msm nome
@@ -31,6 +32,7 @@ FILE *abre_arquivo(char *nome);
 char *get_conteudo(char *dir_name, char *arq_name, char *conteudo, long int *size);
 Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_palavras);
 int comp_byte(char *conteudo1, char *conteudo2, long int size);
-// void comp_content(Arquivo *files, int size); //lista de arq e porcentagem de igualdade
+float jaccard(Arquivo *arq1, Arquivo *arq2);
+void comp_content(Arquivo *files, int size); //lista de arq e porcentagem de igualdade
 
 #endif

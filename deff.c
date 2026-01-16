@@ -1,5 +1,17 @@
 #include "head.h"
 
+void write_csv(char *tipo, char *arq1, char *arq2, float similaridade){
+    FILE *saida = fopen("saida.csv", "a");
+    if (saida == NULL){
+        printf("Erro ao escrever no csv\n");
+    }
+    else{
+        fprintf(saida, "%s;%s;%s;similaridade:%.2f%%\n;", tipo, arq1, arq2, similaridade);
+        fclose(saida); 
+    }
+    return;
+}
+
 void get_name(Arquivo *file)
 {
     int s_name = strlen(file->name);
@@ -48,23 +60,10 @@ Arquivo *all_files(DIR *dir, Arquivo *files, int *size)
 
 void comp_name(Arquivo *files, int size)
 { //lista de arq com msm nome
-    bool printed[size];
-
-    for (int i = 0; i < size; i++){ //inicializa
-        printed[i] = false;
-    }
-
     for(int i=0; i<size-1; i++){
         for(int j=i+1; j<size; j++){ //_stricmp testar se precisa dps
             if (stricmp((files+i)->s_extensao, (files+j)->s_extensao) == 0){
-                if (!(printed[i])){
-                    printf("%s\n", (files+i)->name);
-                    printed[i] = true;
-                }
-                if (!(printed[j])){
-                    printf("%s\n", (files+j)->name);
-                    printed[j] = true;
-                }
+                write_csv("comp_nome", (files+i)->name, (files+j)->name, 100.0);
             }        
         }
     }
@@ -158,36 +157,56 @@ Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_
 }
 
 int comp_byte(char *conteudo1, char *conteudo2, long int size){ 
+    if (size==0) return 1;
     for (long int i = 0; i < size; i++) {
         if (conteudo1[i] != conteudo2[i]) return 0;
     }
-
     return 1;
 }
 
+float jaccard(Arquivo *arq1, Arquivo *arq2){
+    float uniao=0;
+    float intersecao=0;
+
+    for (int i=0; i<arq1->qntd_palavras; i++){
+        for (int j=0; j<arq2->qntd_palavras; j++){
+            if (stricmp((arq1->texto+i)->palavras, (arq2->texto+j)->palavras)==0){
+                intersecao++;
+                break;
+            }
+        }
+    }
+    uniao = (float) arq1->qntd_palavras + (float) arq2->qntd_palavras - intersecao;
+    if (uniao==0) return 0.0;
+    return (intersecao/uniao) *100;
+}
+
 void comp_content(Arquivo *files, int size){
-// fazer funcao get strings p usar dentro de for p acessar td conteudo do arq p comparar usando algoritmo de jaccard
     float similaridade;
-    for (int i=0; i<size-1; i++){
-        //pego arq da vez
-        for (int j=i+1; j<size; j++){
-            if((files+i)->size==(files+j)->size){
-                if (!comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){
-                    //comp byte a byte e se n for 100 igual faz jaccard
-                    // similaridade = jaccard();
-                }else{
+
+    for (int i=0; i<size; i++){
+        if ((files+i)->conteudo == NULL || (files+i)->texto == NULL){
+            printf("Erro de processamento\n");
+            continue;
+        }
+        for (int j=0; j<size; j++){
+            if ((files+i)==(files+j)) continue;
+            if ((files+j)->conteudo == NULL || (files+j)->texto == NULL){
+                printf("Erro de processamento\n");
+                continue;
+            }
+            if ((files+i)->size == (files+j)->size){
+                if (comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){ 
                     similaridade = 100.0;
                 }
-            }else{
-                long int max, min;
-                if ((files+i)->size > (files+j)->size){
-                    max = (files+j)->size;
-                }else{
-                    max = (files+i)->size;
+                else{
+                    similaridade = jaccard(&files[i], &files[j]);
                 }
-                //se tamanhos diferentes aplica jaccard 
-                // similaridade = jaccard();
             }
+            else{
+                similaridade = jaccard(&files[i], &files[j]);
+            }
+            write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade);
         }
     }
 }
