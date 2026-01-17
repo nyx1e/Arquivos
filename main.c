@@ -5,9 +5,11 @@ int main() {
     int option;
     int size = 0; //tam do vetor aloc dinam
     DIR *dir; 
-    char dir_name[256] = "C:/Users/Sousa/OneDrive/Documentos/codigo c/Retirando arquivos repetidos/pasta_teste"; //path
+    char dir_name[256]; //path
     Arquivo *files = NULL;
 
+    printf("Informe o path ou path relativo do diretorio\n");
+    scanf("%[^\n]s", dir_name);
     //mostra tds os arq no dir
     dir = opendir(dir_name); //ele abre funciona como fopen p dir
 
