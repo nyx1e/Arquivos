@@ -6,7 +6,7 @@ void write_csv(char *tipo, char *arq1, char *arq2, float similaridade){
         printf("Erro ao escrever no csv\n");
     }
     else{
-        fprintf(saida, "%s;%s;%s;similaridade:%.2f%%\n;", tipo, arq1, arq2, similaridade);
+        fprintf(saida, "%s;%s;%s;similaridade:%.2f%%;\n", tipo, arq1, arq2, similaridade);
         fclose(saida); 
     }
     return;
@@ -182,31 +182,44 @@ float jaccard(Arquivo *arq1, Arquivo *arq2){
 }
 
 void comp_content(Arquivo *files, int size){
-    float similaridade;
-
-    for (int i=0; i<size; i++){
+    float similaridade[size][size];
+    for (int i=0; i<size; i++){ // inicializa
+        for (int j=0; j<size; j++){ 
+            similaridade[i][j]=0.0;
+        }
+    }
+    for (int i=0; i<size-1; i++){ //processa
         if ((files+i)->conteudo == NULL || (files+i)->texto == NULL){
             printf("Erro de processamento\n");
             continue;
         }
-        for (int j=0; j<size; j++){
-            if ((files+i)==(files+j)) continue;
+        for (int j=i+1; j<size; j++){
             if ((files+j)->conteudo == NULL || (files+j)->texto == NULL){
                 printf("Erro de processamento\n");
                 continue;
             }
             if ((files+i)->size == (files+j)->size){
                 if (comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){ 
-                    similaridade = 100.0;
+                    similaridade[i][j] = 100.0;
                 }
                 else{
-                    similaridade = jaccard(&files[i], &files[j]);
+                    similaridade[i][j] = jaccard(&files[i], &files[j]);
                 }
             }
             else{
-                similaridade = jaccard(&files[i], &files[j]);
+                similaridade[i][j] = jaccard(&files[i], &files[j]);
             }
-            write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade);
+        }
+    }
+    for (int i=0; i<size; i++){ // escreve
+        for (int j=0; j<size; j++){
+            if (i==j) continue;
+            else if (similaridade[i][j]==0){
+                write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade[j][i]);
+            }
+            else{
+                write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade[i][j]);
+            }
         }
     }
 }
