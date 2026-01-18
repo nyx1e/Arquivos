@@ -12,33 +12,33 @@ void write_csv(char *tipo, char *arq1, char *arq2, float similaridade){
     return;
 }
 
-void get_name(Arquivo *file)
-{
+void get_name(Arquivo *file){
+    int idx=0, j=0;
     int s_name = strlen(file->name);
-
     for(int i=0; i<s_name; i++){
         if (file->name[i] != '.'){
             file->s_extensao[i] = file->name[i];  
         }
         else{
+            idx=i;
             file->s_extensao[i] = '\0';
             break;
         }
     }
+    for(int i=idx; i<s_name; i++){
+        file->ext[j]=file->name[i];
+        j++;
+    }
+    file->ext[j]= '\0';
 }
 
-Arquivo *all_files(DIR *dir, Arquivo *files, int *size)
-{
+Arquivo *all_files(DIR *dir, Arquivo *files, int *size){
     struct dirent *entrada; //estrutura para cada entrada (arquivo/pasta)
     Arquivo *temp; //garante q eu n perca os q foram alocados corretamente
-
-    printf("Lista de arquivos no diretorio:\n");
-
+    printf("\nLista de arquivos no diretorio:\n");
     while ((entrada = readdir(dir)) != NULL) { //readdir lê
         if (strcmp(entrada->d_name, ".") == 0 || strcmp(entrada->d_name, "..") == 0) continue;
-
         if (entrada->d_type == DT_DIR) continue;
-        
         printf("%s\n", entrada->d_name); 
 
         //coloca tds os arq do dir num vetor alc dinam
@@ -54,12 +54,10 @@ Arquivo *all_files(DIR *dir, Arquivo *files, int *size)
         get_name(files+(*size));
         (*size)++;
     }
-
     return files;
 }
 
-void comp_name(Arquivo *files, int size)
-{ //lista de arq com msm nome
+void comp_name(Arquivo *files, int size){ //lista de arq com msm nome
     for(int i=0; i<size-1; i++){
         for(int j=i+1; j<size; j++){ //_stricmp testar se precisa dps
             if (stricmp((files+i)->s_extensao, (files+j)->s_extensao) == 0){
@@ -75,21 +73,19 @@ void find_size(FILE *arq, long int *size){
     rewind(arq);
 }
 
-FILE *abre_arquivo(char *nome){ //implenta junto do loop p abrir tds os arq do vetor
+FILE *open_archieve(char *nome){ //implenta junto do loop p abrir tds os arq do vetor
     FILE *arq = fopen(nome, "rb");
-    
     if (arq == NULL) {
         printf("Erro de abertura arq\n");
     }
-    
     return arq; 
 }
 
-char *get_conteudo(char *dir_name, char *arq_name, char *conteudo, long int *size){ //adaptar p retornar um char
+char *get_content(char *dir_name, char *arq_name, char *conteudo, long int *size){ //adaptar p retornar um char
     char *temp = NULL;
     char name[400];
     sprintf(name, "%s/%s", dir_name, arq_name); //se eu usar strcat muda dir_name
-    FILE *arq = abre_arquivo(name);
+    FILE *arq = open_archieve(name);
     if (arq != NULL){
         find_size(arq, size);
         temp = (char*) realloc(conteudo, (*size) + 1); //por conta do \0 p n dar birolha
@@ -118,14 +114,12 @@ char *get_conteudo(char *dir_name, char *arq_name, char *conteudo, long int *siz
 Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_palavras){
     char marcadores[] = ".,; \n";
     char *copia = (char*) malloc(size_conteudo + 1); //precisa p n perder conteudo
-
     if (copia == NULL) return NULL;
     if (size_conteudo ==0){
         *qntd_palavras = 0;
         return NULL;
     }
     strcpy(copia, conteudo);
-
     char *palavra = strtok(copia, marcadores); 
     while (palavra != NULL){
         int encontrada = 0;
@@ -167,7 +161,6 @@ int comp_byte(char *conteudo1, char *conteudo2, long int size){
 float jaccard(Arquivo *arq1, Arquivo *arq2){
     float uniao=0;
     float intersecao=0;
-
     for (int i=0; i<arq1->qntd_palavras; i++){
         for (int j=0; j<arq2->qntd_palavras; j++){
             if (stricmp((arq1->texto+i)->palavras, (arq2->texto+j)->palavras)==0){
@@ -182,10 +175,23 @@ float jaccard(Arquivo *arq1, Arquivo *arq2){
 }
 
 void comp_content(Arquivo *files, int size){
-    float similaridade[size][size];
+    float **similaridade = (float**)malloc(size*sizeof(float*)); 
+    if (similaridade == NULL){
+        printf("Erro de alocacao\n");
+        return;
+    }
     for (int i=0; i<size; i++){ // inicializa
-        for (int j=0; j<size; j++){ 
-            similaridade[i][j]=0.0;
+        similaridade[i]=(float*)malloc(size*sizeof(float));
+        if (similaridade[i]!=NULL){
+            for (int j=0; j<size; j++){ 
+                similaridade[i][j]=0.0;
+            }
+        }
+        else{
+            printf("Erro de alocacao\n");
+            for (int k = 0; k < i; k++) free(similaridade[k]);
+            free(similaridade);
+            return;
         }
     }
     for (int i=0; i<size-1; i++){ //processa
@@ -198,6 +204,7 @@ void comp_content(Arquivo *files, int size){
                 printf("Erro de processamento\n");
                 continue;
             }
+            if (strcmp((files+i)->ext, (files+j)->ext)!=0) continue;
             if ((files+i)->size == (files+j)->size){
                 if (comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){ 
                     similaridade[i][j] = 100.0;
@@ -213,7 +220,7 @@ void comp_content(Arquivo *files, int size){
     }
     for (int i=0; i<size; i++){ // escreve
         for (int j=0; j<size; j++){
-            if (i==j) continue;
+            if (i==j || strcmp((files+i)->ext, (files+j)->ext)!=0) continue;
             else if (similaridade[i][j]==0){
                 write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade[j][i]);
             }
@@ -222,4 +229,8 @@ void comp_content(Arquivo *files, int size){
             }
         }
     }
+    for (int i = 0; i < size; i++){
+        free(similaridade[i]);
+    }
+    free(similaridade);
 }

@@ -16,6 +16,7 @@ typedef struct{
 typedef struct{
     char name[256];
     char s_extensao[256]; //garante q n vão ser comparados arq especiais . e ..
+    char ext[3];
     char *conteudo;
     long int size; //tam alocado p conteudo
     int qntd_palavras;
@@ -28,8 +29,8 @@ void get_name(Arquivo *file);
 Arquivo *all_files(DIR *dir, Arquivo *files, int *size);
 void comp_name(Arquivo *files, int size); //lista de arq com msm nome
 void find_size(FILE *arq, long int *size);
-FILE *abre_arquivo(char *nome);
-char *get_conteudo(char *dir_name, char *arq_name, char *conteudo, long int *size);
+FILE *open_archieve(char *nome);
+char *get_content(char *dir_name, char *arq_name, char *conteudo, long int *size);
 Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_palavras);
 int comp_byte(char *conteudo1, char *conteudo2, long int size);
 float jaccard(Arquivo *arq1, Arquivo *arq2);

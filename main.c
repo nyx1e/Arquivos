@@ -10,6 +10,7 @@ int main() {
 
     printf("Informe o path ou path relativo do diretorio\n");
     scanf("%[^\n]s", dir_name);
+    
     //mostra tds os arq no dir
     dir = opendir(dir_name); //ele abre funciona como fopen p dir
 
@@ -25,14 +26,18 @@ int main() {
 
     //comparacao
     do{
-        printf("Pesquisa por:\n1 - Nome\n2 - Conteudo\n");
+        printf("Pesquisa por:\n0 - Sair\n1 - Comparacao por Nome\n2 - Comparacao por Conteudo\n");
         scanf("%d", &option);
 
         switch (option){
+            case 0:
+            printf("Programa encerrado\n");   
+            break;
+
             case 1:
             //nome
             comp_name(files, size); 
-            printf("Sucesso em arquivar similaridades\n");   
+            printf("Sucesso em arquivar similaridades\n\n");   
             break;
 
             case 2:
@@ -40,28 +45,28 @@ int main() {
             for(int i=0;i<size;i++){
                 (files+i)->conteudo = NULL;
                 (files+i)->texto = NULL;
-                (files+i)->conteudo = get_conteudo(dir_name, (files+i)->name, (files+i)->conteudo, &(files+i)->size);
+                (files+i)->conteudo = get_content(dir_name, (files+i)->name, (files+i)->conteudo, &(files+i)->size);
                 if ((files+i)->conteudo != NULL){ 
                     (files+i)->qntd_palavras = 0;
                     (files+i)->texto = get_text((files+i)->conteudo, (files+i)->size, (files+i)->texto, &(files+i)->qntd_palavras);
                     if ((files+i)->texto==NULL){ 
-                        printf("Erro get_text");
+                        printf("Erro get_text\n");
                         break;
                     }
                 }
                 else{
-                    printf("Erro get_conteudo");
+                    printf("Erro get_conteudo\n");
                     break;
                 }
             }
             comp_content(files, size);
-            printf("Sucesso em arquivar similaridades\n");   
+            printf("Sucesso em arquivar similaridades\n\n");   
             break;
 
             default:
             printf("Opcao invalida\n");
         }
-    }while (option!=1 && option !=2);
+    }while (option!=0);
 
     free(files);
     closedir(dir);
