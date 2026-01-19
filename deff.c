@@ -62,9 +62,13 @@ void comp_name(Arquivo *files, int size){ //lista de arq com msm nome
         for(int j=i+1; j<size; j++){ //_stricmp testar se precisa dps
             if (stricmp((files+i)->s_extensao, (files+j)->s_extensao) == 0){
                 write_csv("comp_nome", (files+i)->name, (files+j)->name, 100.0);
+                printf("Arquivos com nomes iguais:\n%s\n%s\n", (files+i)->name, (files+j)->name);
+                return;
             }        
         }
     }
+    printf("Nao existem arquivos com nomes iguais\n");
+    return;
 }
 
 void find_size(FILE *arq, long int *size){
@@ -277,6 +281,7 @@ void comp_content(Arquivo *files, int size){
             }
             if (similaridade>=0){
                 write_csv("comp_content", (files+i)->name, (files+j)->name, similaridade);
+                printf("A similaridade dos arquivos %s e %s e de %.2f%%\n", (files+i)->name, (files+j)->name, similaridade);
             }
         }
     }
