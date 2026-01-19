@@ -47,8 +47,8 @@ int main() {
                 (files+i)->texto = NULL;
                 (files+i)->conteudo = get_content(dir_name, (files+i)->name, (files+i)->conteudo, &(files+i)->size);
                 if ((files+i)->conteudo != NULL){ 
-                    (files+i)->qntd_palavras = 0;
-                    (files+i)->texto = get_text((files+i)->conteudo, (files+i)->size, (files+i)->texto, &(files+i)->qntd_palavras);
+                    (files+i)->qntd_linhas = 0;
+                    (files+i)->texto = get_line((files+i)->conteudo, (files+i)->size, (files+i)->texto, &(files+i)->qntd_linhas);
                     if ((files+i)->texto==NULL){ 
                         printf("Erro get_text\n");
                         break;

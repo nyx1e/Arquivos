@@ -96,7 +96,7 @@ char *get_content(char *dir_name, char *arq_name, char *conteudo, long int *size
         }
         else{
             conteudo = temp;
-            size_t bytes_lidos = fread(conteudo, 1, *size, arq);
+            size_t bytes_lidos = fread(conteudo, 1, *size, arq); //garantir q leu td
             if (bytes_lidos != *size){
                 printf("Erro n leu completo, lidos %ld\n", bytes_lidos);
                 free(conteudo);
@@ -111,40 +111,48 @@ char *get_content(char *dir_name, char *arq_name, char *conteudo, long int *size
     return NULL;
 }
 
-Texto *get_text(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_palavras){
-    char marcadores[] = ".,; \n";
-    char *copia = (char*) malloc(size_conteudo + 1); //precisa p n perder conteudo
+Texto *get_line(char *conteudo, long int size_conteudo, Texto *texto, int *qntd_linhas){
+    char marcadores[]="\n\r";
+    char *copia = (char*) malloc(size_conteudo + 1); //p n perder o q tem em conteudo
     if (copia == NULL) return NULL;
-    if (size_conteudo ==0){
-        *qntd_palavras = 0;
+    if (size_conteudo == 0){ //p caso de n ter nd
+        *qntd_linhas = 0;
         return NULL;
     }
     strcpy(copia, conteudo);
-    char *palavra = strtok(copia, marcadores); 
-    while (palavra != NULL){
-        int encontrada = 0;
-        if (strlen(palavra) >= 47){ 
-            palavra[47] = '\0';
-        }
-        for (int i = 0; i < *qntd_palavras; i++){
-            if (strcmp(texto[i].palavras, palavra) == 0){
+    char *linha = strtok(copia, marcadores); 
+    while (linha != NULL){
+        int encontrada = 0; //só qro linhas únicas
+        for (int i = 0; i < *qntd_linhas; i++){
+            if (strcmp(texto[i].linhas, linha) == 0){
                 encontrada = 1;
                 break;
             }
         }
-        if (!encontrada){ //só qro q palavras unicas sejam consideradas
-            Texto *temp = (Texto*) realloc(texto, ((*qntd_palavras) + 1) * sizeof(Texto));
+        if (!encontrada){
+            Texto *temp = (Texto*) realloc(texto, ((*qntd_linhas) + 1) * sizeof(Texto));
             if (temp == NULL){
                 free(texto);
                 free(copia);
+                *qntd_linhas = 0;
                 return NULL;
             }
             texto = temp;
-            strncpy(texto[*qntd_palavras].palavras, palavra, 46);
-            texto[*qntd_palavras].qntd = 1;
-            (*qntd_palavras)++;
+            size_t tam_linha = strlen(linha) + 1; //garante q retorna um valor suficiente p armazenar o char
+            texto[*qntd_linhas].linhas = (char*) malloc(tam_linha);
+            if (texto[*qntd_linhas].linhas == NULL){
+                for (int i = 0; i < *qntd_linhas; i++){
+                    free(texto[i].linhas);
+                }
+                free(texto);
+                free(copia);
+                *qntd_linhas = 0;
+                return NULL;
+            }
+            strcpy(texto[*qntd_linhas].linhas, linha);
+            (*qntd_linhas)++;
         }
-        palavra = strtok(NULL, marcadores);
+        linha = strtok(NULL, marcadores);
     }
     free(copia);
     return texto;
@@ -158,48 +166,99 @@ int comp_byte(char *conteudo1, char *conteudo2, long int size){
     return 1;
 }
 
-float jaccard(Arquivo *arq1, Arquivo *arq2){
-    float uniao=0;
-    float intersecao=0;
-    for (int i=0; i<arq1->qntd_palavras; i++){
-        for (int j=0; j<arq2->qntd_palavras; j++){
-            if (stricmp((arq1->texto+i)->palavras, (arq2->texto+j)->palavras)==0){
-                intersecao++;
-                break;
+int mini(int a, int b, int c){
+    int menor = a;
+    if (b < menor) menor = b;
+    if (c < menor) menor = c;
+    return menor;
+}
+
+int edit_distance(char *word1, char *word2){
+    int len1 = strlen(word1);
+    int len2 = strlen(word2);
+    int **M = (int**)malloc((len1+1)*sizeof(int*));
+    if (M == NULL){
+        printf("Erro de alocacao\n");
+        return -1;
+    }
+    for (int i = 0; i <= len1; i++){
+        M[i] = (int*)malloc((len2+1)*sizeof(int));
+        if (M[i] == NULL){
+            printf("Erro de alocacao\n");
+            for (int k = 0; k < i; k++){
+                free(M[k]);
             }
+            free(M);
+            return -1;
+        }
+        for (int j = 0; j <= len2; j++){
+            M[i][j] = 0;
         }
     }
-    uniao = (float) arq1->qntd_palavras + (float) arq2->qntd_palavras - intersecao;
-    if (uniao==0) return 0.0;
-    return (intersecao/uniao) *100;
+    for (int i = 0; i <= len1; i++){ //caso base com linha e coluna ""
+        M[i][0] = i;
+    }
+    for (int j = 0; j <= len2; j++){
+        M[0][j] = j;
+    }
+    for (int i = 1; i <= len1; i++){
+        for (int j = 1; j <= len2; j++){
+            if (word1[i-1] == word2[j-1]){
+                M[i][j] = M[i-1][j-1];
+            }
+            else{
+                M[i][j] = mini(
+                    M[i-1][j] + 1,      //del
+                    M[i][j-1] + 1,      //inser
+                    M[i-1][j-1] + 1     //subst
+                );
+            }
+        }
+    }    
+    int resultado = M[len1][len2];
+    for (int i = 0; i <= len1; i++){
+        free(M[i]);
+    }
+    free(M);
+    return resultado;
+}
+
+float line_line(Texto *texto1, Texto *texto2, int qntd1, int qntd2){
+    long int diff_total = 0;
+    int dist = 0;
+    int max_len = 0; 
+    int min_linhas = (qntd1 < qntd2) ? qntd1 : qntd2;
+    for (int i = 0; i < min_linhas; i++){
+        dist = edit_distance(texto1[i].linhas, texto2[i].linhas);
+        if (dist == -1){
+            return -1.0;
+        }
+        diff_total += dist;
+        int len1 = strlen(texto1[i].linhas), len2 = strlen(texto2[i].linhas);
+        max_len += len1>len2? len1:len2;
+    }
+    for (int i = min_linhas; i < qntd1; i++){ //adiciona as linhas q sobram a diferença e tbm ao total
+        int len = strlen(texto1[i].linhas);
+        diff_total += len;
+        max_len += len;
+    }
+    for (int j = min_linhas; j < qntd2; j++){
+        int len = strlen(texto2[j].linhas);
+        diff_total += len;
+        max_len += len;
+    }
+    return (1.0 - ((float)diff_total / (float)max_len)) * 100.0;
 }
 
 void comp_content(Arquivo *files, int size){
-    float **similaridade = (float**)malloc(size*sizeof(float*)); 
-    if (similaridade == NULL){
-        printf("Erro de alocacao\n");
-        return;
-    }
-    for (int i=0; i<size; i++){ // inicializa
-        similaridade[i]=(float*)malloc(size*sizeof(float));
-        if (similaridade[i]!=NULL){
-            for (int j=0; j<size; j++){ 
-                similaridade[i][j]=0.0;
-            }
-        }
-        else{
-            printf("Erro de alocacao\n");
-            for (int k = 0; k < i; k++) free(similaridade[k]);
-            free(similaridade);
-            return;
-        }
-    }
-    for (int i=0; i<size-1; i++){ //processa
+    float similaridade; 
+    for (int i=0; i<size; i++){ 
         if ((files+i)->conteudo == NULL || (files+i)->texto == NULL){
             printf("Erro de processamento\n");
             continue;
         }
-        for (int j=i+1; j<size; j++){
+        for (int j=0; j<size; j++){
+            if (files+i == files+j) continue;
             if ((files+j)->conteudo == NULL || (files+j)->texto == NULL){
                 printf("Erro de processamento\n");
                 continue;
@@ -207,30 +266,18 @@ void comp_content(Arquivo *files, int size){
             if (strcmp((files+i)->ext, (files+j)->ext)!=0) continue;
             if ((files+i)->size == (files+j)->size){
                 if (comp_byte((files+i)->conteudo, (files+j)->conteudo, (files+i)->size)){ 
-                    similaridade[i][j] = 100.0;
+                    similaridade = 100.0;
                 }
                 else{
-                    similaridade[i][j] = jaccard(&files[i], &files[j]);
+                    similaridade = line_line((files+i)->texto, (files+j)->texto, (files+i)->qntd_linhas, (files+j)->qntd_linhas);
                 }
             }
             else{
-                similaridade[i][j] = jaccard(&files[i], &files[j]);
+                similaridade = line_line((files+i)->texto, (files+j)->texto, (files+i)->qntd_linhas, (files+j)->qntd_linhas);
+            }
+            if (similaridade>=0){
+                write_csv("comp_content", (files+i)->name, (files+j)->name, similaridade);
             }
         }
     }
-    for (int i=0; i<size; i++){ // escreve
-        for (int j=0; j<size; j++){
-            if (i==j || strcmp((files+i)->ext, (files+j)->ext)!=0) continue;
-            else if (similaridade[i][j]==0){
-                write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade[j][i]);
-            }
-            else{
-                write_csv("comp_conteudo", (files+i)->name, (files+j)->name, similaridade[i][j]);
-            }
-        }
-    }
-    for (int i = 0; i < size; i++){
-        free(similaridade[i]);
-    }
-    free(similaridade);
 }
